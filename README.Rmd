@@ -62,4 +62,4 @@ The closest station to the median temperature is station 720113.
 
 The closest station to the median wind speed is station 690150.
 
-The closest station to the median atmospheric pressure was also 690150.
+The closest station to the median atmospheric pressure is also 690150.
