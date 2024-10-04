@@ -127,3 +127,38 @@ leaflet() %>%
   addCircleMarkers(data = combined_stations,
                    lng = ~lon, lat = ~lat)
 ```
+
+**Question 4**
+
+```{r, eval=TRUE}
+
+state_avg_temp <- met_merged %>%
+  group_by(STATE) %>%
+  summarize(avg_temp = mean(temp, na.rm = TRUE))
+
+state_avg_temp <- state_avg_temp %>%
+  mutate(
+    temp_level = ifelse(avg_temp < 20, "Low", 
+                  ifelse(avg_temp >= 20 & avg_temp < 25, "Mid", "High"))
+  )
+
+met_with_levels <- merge(met_merged, state_avg_temp, by = "STATE")
+
+print(head(met_with_levels))
+
+summary_table <- met_with_levels %>%
+  group_by(temp_level) %>%
+  summarize(
+    num_records = n(),
+    num_na_temp = sum(is.na(temp)),
+    num_na_wind = sum(is.na(wind.sp)),
+    num_na_pressure = sum(is.na(atm.press)),
+    num_stations = n_distinct(USAFID),
+    num_states = n_distinct(STATE),
+    mean_temp = mean(temp, na.rm = TRUE),
+    mean_wind = mean(wind.sp, na.rm = TRUE),
+    mean_pressure = mean(atm.press, na.rm = TRUE)
+  )
+
+print(summary_table)
+```
