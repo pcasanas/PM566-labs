@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Lab5
 ================
 Patrick Casanas
@@ -498,3 +499,6 @@ print(summary_table)
     ## 3 Mid            1135423       29252       33808          756397          781
     ## # ℹ 4 more variables: num_states <int>, mean_temp <dbl>, mean_wind <dbl>,
     ## #   mean_pressure <dbl>
+=======
+# PM566-labs
+>>>>>>> 700af6f74f78a9a031cf6b4af4ee396b9a730b45
