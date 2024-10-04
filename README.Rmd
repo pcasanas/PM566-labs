@@ -9,6 +9,7 @@ output: github_document
 library(data.table)
 library(dtplyr)
 library (dplyr)
+library(leaflet)
 stations <- fread("https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv")
 stations[, USAF := as.integer(USAF)]
 
@@ -63,3 +64,66 @@ The closest station to the median temperature is station 720113.
 The closest station to the median wind speed is station 690150.
 
 The closest station to the median atmospheric pressure is also 690150.
+
+**Question 2**
+
+```{r, eval=TRUE}
+
+representative_stations <- met_merged %>%
+  filter(!is.na(temp), !is.na(wind.sp), !is.na(atm.press), !is.na(elev)) %>%
+  group_by(STATE) %>%
+  mutate(
+    med_temp = median(temp),
+    med_wind = median(wind.sp),
+    med_pressure = median(atm.press),
+    euclidean_dist = sqrt((temp - med_temp)^2 + (wind.sp - med_wind)^2 + (atm.press - med_pressure)^2)
+  ) %>%
+  filter(euclidean_dist == 0) %>%
+  arrange(STATE, elev) %>%
+  slice(1)
+
+print(met_merged)
+
+```
+
+**Question 3**
+
+```{r, eval=TRUE}
+
+midpoint_stations <- met_merged %>%
+  group_by(STATE) %>%
+  summarize(
+    mid_lat = mean(lat, na.rm = TRUE),
+    mid_lon = mean(lon, na.rm = TRUE)
+  )
+
+print(midpoint_stations)
+
+met_with_midpoints <- merge(met_merged, midpoint_stations, by = "STATE")
+
+met_with_midpoints <- met_with_midpoints %>%
+  mutate(
+    dist_to_mid = sqrt((lat - mid_lat)^2 + (lon - mid_lon)^2)  # Use lowercase 'lat' and 'lon'
+  )
+
+print(head(met_with_midpoints))
+
+closest_midpoint_station <- met_with_midpoints %>%
+  group_by(STATE) %>%
+  filter(dist_to_mid == min(dist_to_mid)) %>%
+  slice(1)
+
+print(closest_midpoint_station)
+
+combined_stations <- bind_rows(closest_midpoint_station, representative_stations)
+
+print(combined_stations)
+
+```
+
+```{r, eval=FALSE}
+leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(data = combined_stations,
+                   lng = ~lon, lat = ~lat)
+```
