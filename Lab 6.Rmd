@@ -1,0 +1,181 @@
+---
+title: "Lab 6"
+author: "Patrick Casanas"
+date: "2024-10-11"
+output: html_document
+embed-resources: true
+---
+
+```{r}
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(tidytext)
+library(readr)
+library (tidyr)
+library(stringr)
+```
+
+```{r, eval=TRUE}
+mt_samples <- read_csv("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/00_mtsamples/mtsamples.csv")
+mt_samples <- mt_samples %>%
+  select(description, medical_specialty, transcription)
+
+head(mt_samples)
+```
+
+# Question 1
+
+```{r, eval=TRUE}
+mt_samples %>%
+  count(medical_specialty, sort = TRUE)
+```
+
+The specialties are not evenly distributed as surgery is the highest with a count of 1,103 whereas some specialties have as low as 6.
+
+There appears to be some overlapping categories such as SOAP/Chart/Progress Notes overlapping with Emergency Room Reports. Office notes could overlap with letters. Most of the specialized professions could also go under the Consult - History and Physical category since almost all of them have to have an initial consultation at some point.
+
+# Question 2
+
+```{r, eval=TRUE}
+tokens <- mt_samples %>%
+  unnest_tokens(word, transcription)
+
+word_count <- tokens %>%
+  count(word, sort=TRUE)
+```
+
+```{r, eval=TRUE}
+word_count %>%
+  slice_max(n, n=20) %>%
+  ggplot(aes(x= word, y=n))+
+  geom_bar(stat="identity")+
+  labs(x="Word", y="Count", title="Top 20 Most Frequent Words")
+```
+
+Yes, this table makes sense as these are very common conjunctions, with the word "the" being the most common followed by the word "and". This table is not very useful currently for insights because of the lack of more unique word counts.
+
+# Question 3
+
+```{r}
+data("stop_words")
+
+filtered_words <- tokens %>%
+  filter(!(word %in% stop_words$word)) %>%
+  filter(is.na(as.numeric(word)))
+
+filtered_word_count <- filtered_words %>%
+  count(word, sort=TRUE)
+```
+
+We see see more useful information such as the words procedure and blood but still not the best when trying to decipher what is the most talked about since the most common word is patient.
+
+# Question 4
+
+```{r}
+bi_grams <- mt_samples %>%
+  unnest_tokens(bigram, transcription, token = "ngrams", n=2)
+
+bi_gram_count <- bi_grams %>%
+  count(bigram, sort=TRUE)
+```
+
+```{r, eval=TRUE}
+bi_gram_count %>%
+  slice_max(n, n=20) %>%
+  ggplot(aes(x=bigram, y=n))+
+  geom_bar(stat="Identity")+
+  labs(x="Bi-gram", y="Count", title="Top 20 Most Frequent Bi-grams")+
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+```{r}
+tri_grams <- mt_samples %>%
+  unnest_tokens(trigram, transcription, token = "ngrams", n = 3)
+
+tri_gram_count <- tri_grams %>%
+  count(trigram, sort = TRUE)
+```
+
+```{r, eval=TRUE}
+tri_gram_count %>%
+  slice_max(n, n = 20) %>%
+  ggplot(aes(x = trigram, y = n)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Tri-gram", y = "Count", title = "Top 20 Most Frequent Tri-grams")+
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+When looking at tri-grams vs. bi-grams, there is one most common phrase, whereas bi-grams has multiple fairly common phrases. "The patient was" tri-gram is by far the most frequent tri-gram which appears to be a combination of the bi-grams "the patient" and "patient was". The bi-grams that don't show up as frequently as tri-grams include "of the", "in the", and "to the".
+
+# Question 5
+
+```{r}
+mt_samples_clean <- mt_samples %>%
+  mutate(transcription = iconv(transcription, to = "ASCII//TRANSLIT"))
+
+bi_grams <- mt_samples_clean %>%
+  unnest_tokens(bigram, transcription, token = "ngrams", n = 2)
+
+after_patient_count <- bi_grams %>%
+  filter(grepl("^patient", bigram)) %>%
+  count(bigram, sort = TRUE)
+
+before_patient_count <- bi_grams %>%
+  filter(str_detect(bigram, "patient$")) %>%
+  count(bigram, sort = TRUE)
+```
+
+```{r, eval=TRUE}
+after_patient_count
+before_patient_count
+```
+
+# Question 6
+
+```{r}
+specialty_frequent_words <- filtered_words %>%
+  group_by(medical_specialty) %>%
+  count(word, sort=TRUE) %>%
+  slice_max(n, n=5)
+
+specialty_frequent_words
+```
+
+```{r, eval=TRUE}
+most_used_words <- filtered_words %>%
+  count(word, sort=TRUE) %>%
+  slice_max(n, n=5)
+
+most_used_words
+```
+
+This information is a lot more useful broken down by specialty. We can see in allergy/immunology, the most used words include nasal and allergies. From this information, we can assume they're mostly describing sinus symptoms when talking about allergies rather than anaphylaxis. Similarly, we see Pathology use the words tumor, cm, lymph, and lobe which is indicative of the most common tests that they run. When compared to just the top 5 words used as above unfiltered, that table does not provide any useful information.
+
+# Question 7
+
+```{r}
+tri_grams_filtered <- tri_grams %>%
+  separate(trigram, into = c("word1", "word2", "word3"), sep = " ") %>%
+  filter(!(word1 %in% stop_words$word)) %>%
+  filter(!(word2 %in% stop_words$word)) %>%
+  filter(!(word3 %in% stop_words$word)) %>%
+  filter(is.na(as.numeric(word1))) %>%
+  filter(is.na(as.numeric(word2))) %>%
+  filter(is.na(as.numeric(word3)))
+
+tri_grams_filtered <- tri_grams_filtered %>%
+  unite("trigram", word1, word2, word3, sep="")
+
+tri_gram_count <- tri_grams_filtered %>%
+  count(trigram, sort=TRUE)
+```
+
+```{r}
+top_tri_grams <- tri_gram_count %>%
+  slice_max(n, n=10)
+
+top_tri_grams
+```
+
+This is slightly informative because a disease shows up in this which is "coronary artery disease". This data could show that it is a very common disease for many people which is true in the United States.
